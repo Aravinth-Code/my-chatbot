@@ -12,3 +12,5 @@ python-dotenv
 pydantic-settings
 
 pgvector
+
+python-multipart
