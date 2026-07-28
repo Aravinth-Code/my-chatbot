@@ -7,6 +7,7 @@ from sqlalchemy import pool
 
 from alembic import context
 from app.models.document import Document
+from app.models.document_contents import DocumentContent
 
 settings = get_settings()
 

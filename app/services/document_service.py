@@ -4,14 +4,23 @@ from uuid import UUID
 import uuid
 from fastapi import HTTPException, UploadFile, status
 from app.core.constants import ALLOWED_MIME_TYPES, MAX_UPLOAD_SIZE, UPLOAD_DIRECTORY
+from app.ingestion.extractors.pdf_extractor import PDFExtractor
 from app.models.document import Document
 from app.models.enums.document_status import DocumentStatus
+from app.repositories.document_contents_repository import DocumentContentsRepository
 from app.repositories.document_repository import DocumentRepository
 
 class DocumentService:
 
-    def __init__(self, repository: DocumentRepository):
-        self.document_repository = repository
+    def __init__(self, 
+                 document_repository: DocumentRepository,
+                 document_contents_repository: DocumentContentsRepository,
+                 pdf_extractor: PDFExtractor):
+        
+        self.document_repository = document_repository
+        self.document_contents_repository = document_contents_repository
+        self.pdf_extractor = pdf_extractor
+        
         
     def get_document(self, document_id: UUID) -> Document | None:
         return self.document_repository.get_by_id(document_id)
@@ -42,8 +51,32 @@ class DocumentService:
             file_size=len(file_bytes),
         )
 
-        return self.document_repository.create(document)    
-         
+        # save documents to db
+        document = self.document_repository.create(document)
+        
+        self.document_repository.update_status(document, DocumentStatus.EXTRACTING)
+        
+        try:
+            # pdf extraction
+            contents = self.pdf_extractor.extract(
+                document_id=document.id,
+                pdf_path=Path(document.storage_path),
+            ) 
+            
+            self.document_repository.update_status(document, DocumentStatus.EXTRACTED)
+
+        except Exception:
+            self.document_repository.update_status(
+                document,
+                DocumentStatus.FAILED,
+            )
+            raise    
+        
+        # save contents to db
+        self.document_contents_repository.create_many(contents)
+        
+        return document
+            
     def _validate_mime_type(self, file: UploadFile):
         if file.content_type not in ALLOWED_MIME_TYPES:
             raise HTTPException(

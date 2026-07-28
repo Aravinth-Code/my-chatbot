@@ -2,6 +2,9 @@ from enum import Enum
 
 class DocumentStatus(str, Enum):
     UPLOADED = "UPLOADED"
-    PROCESSING = "PROCESSING"
+    EXTRACTING = "EXTRACTING"
+    EXTRACTED = "EXTRACTED"
+    CHUNKING = "CHUNKING"
+    EMBEDDING = "EMBEDDING"
     PROCESSED = "PROCESSED"
     FAILED = "FAILED"

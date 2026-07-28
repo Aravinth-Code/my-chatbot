@@ -14,3 +14,6 @@ pydantic-settings
 pgvector
 
 python-multipart
+
+# docs
+pymupdf
