@@ -54,7 +54,7 @@ class DocumentService:
         # save documents to db
         document = self.document_repository.create(document)
         
-        self.document_repository.update_status(document, DocumentStatus.EXTRACTING)
+        self.document_repository.update_status(document, DocumentStatus.PROCESSING)
         
         try:
             # pdf extraction
@@ -63,7 +63,7 @@ class DocumentService:
                 pdf_path=Path(document.storage_path),
             ) 
             
-            self.document_repository.update_status(document, DocumentStatus.EXTRACTED)
+            self.document_repository.update_status(document, DocumentStatus.PROCESSED)
 
         except Exception:
             self.document_repository.update_status(
@@ -117,10 +117,11 @@ class DocumentService:
             parents=True,
             exist_ok=True,
         )
+        
         file_path = UPLOAD_DIRECTORY / stored_file_name
         with open(file_path, "wb") as file:
             file.write(file_bytes)
-
+            
         return str(file_path)
     
     def _build_document(self, file: UploadFile, checksum: str, stored_file_name: str, storage_path: str, file_size: int) -> Document:
