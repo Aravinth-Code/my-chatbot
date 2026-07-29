@@ -26,6 +26,11 @@ class DocumentContent(Base, BaseModel):
         Text,
         nullable=False,
     )
+    
+    clean_text: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
 
     content_metadata: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
