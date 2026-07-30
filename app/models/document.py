@@ -3,6 +3,7 @@ from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 from app.models.base_model import BaseModel
+from app.models.document_chunks import DocumentChunk
 from app.models.document_contents import DocumentContent
 from app.models.enums.document_status import DocumentStatus
 
@@ -58,6 +59,11 @@ class Document(Base, BaseModel):
     
     contents: Mapped[list["DocumentContent"]] = relationship(
         "DocumentContent",
+        back_populates="document",
+        cascade="all, delete-orphan",
+    )
+    
+    chunks: Mapped[list["DocumentChunk"]] = relationship(
         back_populates="document",
         cascade="all, delete-orphan",
     )

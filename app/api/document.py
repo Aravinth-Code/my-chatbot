@@ -7,8 +7,5 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 @router.post("/document/upload")
-async def upload_document(
-    file: UploadFile = File(...),
-    document_service: DocumentService = Depends(get_document_service),
-):
+async def upload_document(file: UploadFile = File(...), document_service: DocumentService = Depends(get_document_service)):
     return await document_service.upload_document(file)

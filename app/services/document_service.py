@@ -4,8 +4,8 @@ from uuid import UUID
 import uuid
 from fastapi import HTTPException, UploadFile, status
 from app.core.constants import ALLOWED_MIME_TYPES, MAX_UPLOAD_SIZE, UPLOAD_DIRECTORY
-from app.ingestion.extractors.pdf_extractor import PDFExtractor
-from app.ingestion.cleaners.text_cleaner import TextCleaner
+from app.pipeline.extractors.pdf_extractor import PDFExtractor
+from app.pipeline.cleaners.text_cleaner import TextCleaner
 
 from app.models.document import Document
 from app.models.enums.document_status import DocumentStatus
@@ -68,7 +68,7 @@ class DocumentService:
             contents = self.pdf_extractor.extract(document_id=document.id, pdf_path=Path(document.storage_path)) 
             
             # pdf clean
-            contents = self.text_cleaner.clean_document_content(contents)
+            contents = self.text_cleaner.clean_document_content(docs=contents)
             
             self.document_repository.update_status(document, DocumentStatus.EXTRACTED)
 

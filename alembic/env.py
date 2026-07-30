@@ -8,6 +8,7 @@ from sqlalchemy import pool
 from alembic import context
 from app.models.document import Document
 from app.models.document_contents import DocumentContent
+from app.models.document_chunks import DocumentChunk
 
 settings = get_settings()
 

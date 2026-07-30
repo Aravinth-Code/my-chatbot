@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 from sqlalchemy import ForeignKey, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
@@ -11,7 +12,7 @@ if TYPE_CHECKING:
 class DocumentContent(Base, BaseModel):
     __tablename__ = "document_contents"
     
-    document_id: Mapped[str] = mapped_column(
+    document_id: Mapped[UUID] = mapped_column(
         ForeignKey("documents.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

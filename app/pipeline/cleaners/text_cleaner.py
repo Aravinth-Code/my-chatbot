@@ -6,7 +6,7 @@ class TextCleaner:
     
     def clean_document_content(self, docs: list[DocumentContent]) -> DocumentContent:
         for doc in docs:
-            doc.clean_text = self.text_cleaner.clean(doc.raw_text)
+            doc.clean_text = self.clean(doc.raw_text)
         
         return docs
     
