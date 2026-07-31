@@ -100,7 +100,6 @@ class DocumentService:
 
     def _validate_file_size(self, file_bytes: bytes):
         if len(file_bytes) > MAX_UPLOAD_SIZE:
-            print("hi")
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                 detail="File size exceeds maximum limit."
