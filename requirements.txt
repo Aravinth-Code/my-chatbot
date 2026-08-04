@@ -17,3 +17,6 @@ python-multipart
 
 # docs
 pymupdf
+
+# langchain
+langchain_text_splitters

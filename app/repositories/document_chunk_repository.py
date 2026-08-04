@@ -6,7 +6,7 @@ from app.models.document_chunks import DocumentChunk
 from app.models.enums.chunk_status import ChunkStatus
 
 
-class ChunkRepository:
+class DocumentChunkRepository:
     def __init__(self, db: Session):
         self.db = db
     

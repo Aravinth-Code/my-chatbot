@@ -11,6 +11,7 @@ from app.models.document import Document
 from app.models.enums.document_status import DocumentStatus
 from app.repositories.document_contents_repository import DocumentContentsRepository
 from app.repositories.document_repository import DocumentRepository
+from app.services.document_chunk_service import DocumentChunkService
 
 class DocumentService:
 
@@ -18,12 +19,14 @@ class DocumentService:
                  document_repository: DocumentRepository,
                  document_contents_repository: DocumentContentsRepository,
                  pdf_extractor: PDFExtractor,
-                 text_cleaner: TextCleaner):
+                 text_cleaner: TextCleaner,
+                 document_chunk_service: DocumentChunkService):
         
         self.document_repository = document_repository
         self.document_contents_repository = document_contents_repository
         self.pdf_extractor = pdf_extractor
         self.text_cleaner = text_cleaner
+        self.document_chunk_service = document_chunk_service
         
         
     def get_document(self, document_id: UUID) -> Document | None:
@@ -81,6 +84,18 @@ class DocumentService:
         
         # save contents to db
         self.document_contents_repository.create_many(contents)
+        
+        try:
+            self.document_repository.update_status(document, DocumentStatus.CHUNKING)
+
+            self.document_chunk_service.chunk_document(document.id)
+
+        except Exception:
+            self.document_repository.update_status(
+                document,
+                DocumentStatus.FAILED,
+            )
+            raise    
         
         self.document_repository.update_status(document, DocumentStatus.PROCESSED)
 
