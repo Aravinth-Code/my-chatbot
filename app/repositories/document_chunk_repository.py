@@ -17,6 +17,15 @@ class DocumentChunkRepository:
             self.db.refresh(chunk)
         return(chunks)
        
+    def search_by_embedding(self, query_embedding: list[float], top_k: int) -> list[DocumentChunk]:
+        return (
+            self.db.query(DocumentChunk)
+            .filter(DocumentChunk.status == ChunkStatus.EMBEDDED)
+            .order_by(DocumentChunk.embedding.cosine_distance(query_embedding))
+            .limit(top_k)
+            .all()
+        )
+
     def save_embeddings(self, chunks: list[DocumentChunk]) -> list[DocumentChunk]:
         self.db.add_all(chunks)
         self.db.commit()

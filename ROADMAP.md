@@ -16,8 +16,8 @@ Guiding philosophy (keep following this): **don't build phases ahead of need.** 
 | 6 | Document Classification | ⬜ Not started |
 | 7 | Chunking Engine | 🟡 One strategy done (`RecursiveChunker`). Header-aware/HTML-aware/sentence/semantic/parent-child/adaptive not started. Chunker interface intentionally left undefined until a second chunker is built |
 | 8 | Embeddings | 🟡 OpenAI (`text-embedding-3-small`) done — batched generation, stored in pgvector, versioned via `embedding_model` column. Other providers (Gemini, BGE, E5, Nomic, Sentence Transformers, Ollama) not started |
-| 9 | Vector Storage | 🟡 `pgvector` column + migration in place. Index strategy (HNSW vs IVFFlat) not chosen yet — currently unindexed |
-| 10 | Candidate Retrieval (vector search, BM25, hybrid, metadata/version/time filtering) | ⬜ Not started |
+| 9 | Vector Storage | ✅ Done — `pgvector` column, `vector` extension migration, HNSW index (cosine ops) on `document_chunks.embedding` |
+| 10 | Candidate Retrieval (vector search, BM25, hybrid, metadata/version/time filtering) | 🟡 Plain vector search done — `POST /search` embeds the query and returns the top-k nearest chunks by cosine distance. BM25, hybrid fusion, and metadata/version/time filtering not started |
 | 11 | Query Intelligence (rewrite, multi-query, spell correction, intent/language detection) | ⬜ Not started |
 | 12 | Ranking Pipeline (RRF, cross-encoder, MMR, context compression) | ⬜ Not started |
 | 13 | Prompt Builder | ⬜ Not started |
@@ -32,12 +32,14 @@ Guiding philosophy (keep following this): **don't build phases ahead of need.** 
 
 ## Immediate next candidates (in rough order)
 
-1. Vector index (HNSW) on `document_chunks.embedding` once query patterns exist to tune against
-2. Retrieval (Phase 10) — the first point where the system can actually answer a question end-to-end
-3. A second document source (e.g. website/HTML ingestion) — this is what would justify finally writing the `Extractor`/`Cleaner` interfaces
+1. A second document source (webpage/HTML ingestion, agreed as next) — this is what would justify finally writing the `Extractor`/`Cleaner` interfaces
+2. BM25 / hybrid search and metadata filtering to round out Phase 10
+3. Query Intelligence (Phase 11) and Ranking Pipeline (Phase 12) once there's real retrieval traffic to tune against
 
 ## Decisions log
 
 - **Embedding model is `text-embedding-3-small` (1536 dims), fixed.** Multi-model support later needs either separate vector columns/tables per dimension or a projection step — noted for when Phase 8's provider list expands.
 - **Interfaces for chunker/cleaner/extractor are intentionally empty files**, not missing work — see `CLAUDE.md`.
 - **`embedding_model` column added to `document_chunks`** ahead of needing multiple providers, specifically so vectors stay traceable to the model that produced them (cheap to add now, expensive to backfill later).
+- **`CREATE EXTENSION vector` was missing from migrations** even though the `embedding` column already worked (it had been enabled manually on the dev database at some point). Added to the HNSW index migration so a fresh database built from migrations alone won't fail.
+- **`POST /search` returns raw candidate chunks, no ranking/reranking yet.** This is intentionally the "candidate retrieval" stage only (Phase 10) — narrowing to the best few chunks is Phase 12's job (RRF, cross-encoder, MMR), not built yet.
