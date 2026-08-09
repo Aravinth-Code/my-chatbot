@@ -2,6 +2,7 @@ from enum import Enum
 from typing import TYPE_CHECKING
 from uuid import UUID
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import ForeignKey, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
@@ -48,6 +49,11 @@ class DocumentChunk(Base, BaseModel):
 
     token_count: Mapped[int | None] = mapped_column(
         Integer,
+        nullable=True,
+    )
+    
+    embedding: Mapped[list[float] | None] = mapped_column(
+        Vector(1536),
         nullable=True,
     )
 
