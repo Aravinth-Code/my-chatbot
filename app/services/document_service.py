@@ -12,21 +12,24 @@ from app.models.enums.document_status import DocumentStatus
 from app.repositories.document_contents_repository import DocumentContentsRepository
 from app.repositories.document_repository import DocumentRepository
 from app.services.document_chunk_service import DocumentChunkService
+from app.services.embedding_service import EmbeddingService
 
 class DocumentService:
 
-    def __init__(self, 
+    def __init__(self,
                  document_repository: DocumentRepository,
                  document_contents_repository: DocumentContentsRepository,
                  pdf_extractor: PDFExtractor,
                  text_cleaner: TextCleaner,
-                 document_chunk_service: DocumentChunkService):
-        
+                 document_chunk_service: DocumentChunkService,
+                 embedding_service: EmbeddingService):
+
         self.document_repository = document_repository
         self.document_contents_repository = document_contents_repository
         self.pdf_extractor = pdf_extractor
         self.text_cleaner = text_cleaner
         self.document_chunk_service = document_chunk_service
+        self.embedding_service = embedding_service
         
         
     def get_document(self, document_id: UUID) -> Document | None:
@@ -95,8 +98,20 @@ class DocumentService:
                 document,
                 DocumentStatus.FAILED,
             )
-            raise    
-        
+            raise
+
+        try:
+            self.document_repository.update_status(document, DocumentStatus.EMBEDDING)
+
+            self.embedding_service.embed_document(document.id)
+
+        except Exception:
+            self.document_repository.update_status(
+                document,
+                DocumentStatus.FAILED,
+            )
+            raise
+
         self.document_repository.update_status(document, DocumentStatus.PROCESSED)
 
         return document

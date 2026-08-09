@@ -17,6 +17,13 @@ class DocumentChunkRepository:
             self.db.refresh(chunk)
         return(chunks)
        
+    def save_embeddings(self, chunks: list[DocumentChunk]) -> list[DocumentChunk]:
+        self.db.add_all(chunks)
+        self.db.commit()
+        for chunk in chunks:
+            self.db.refresh(chunk)
+        return chunks
+
     def get_document_chunks(self, document_id: UUID) -> list[DocumentChunk] :
         return (
             self.db.query(DocumentChunk)

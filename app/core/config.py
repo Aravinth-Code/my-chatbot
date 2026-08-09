@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     db_user: str
     db_password: str
 
+    # Embeddings
+    openai_api_key: str
+    embedding_model: str = "text-embedding-3-small"
+    embedding_batch_size: int = 100
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=False

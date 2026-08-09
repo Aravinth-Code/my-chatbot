@@ -20,3 +20,6 @@ pymupdf
 
 # langchain
 langchain_text_splitters
+
+# embeddings
+openai
