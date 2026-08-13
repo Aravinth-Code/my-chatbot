@@ -23,3 +23,8 @@ langchain_text_splitters
 
 # embeddings
 openai
+
+# web ingestion
+httpx
+beautifulsoup4
+lxml

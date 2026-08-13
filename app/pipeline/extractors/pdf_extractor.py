@@ -1,24 +1,24 @@
-from pathlib import Path
 from uuid import UUID
 
 import fitz
 
 from app.models.document_contents import DocumentContent
+from app.pipeline.extractors.extractor import Extractor
 
 
-class PDFExtractor:
-    
-    def extract(self, document_id: UUID, pdf_path: Path) -> list[DocumentContent]:
+class PDFExtractor(Extractor):
+
+    def extract(self, document_id: UUID, content: bytes) -> list[DocumentContent]:
         contents: list[DocumentContent] = []
-        with fitz.open(pdf_path) as pdf:
+        with fitz.open(stream=content, filetype="pdf") as pdf:
             for page_number, page in enumerate(pdf, start=1):
-                content = self._extract_page(
+                document_content = self._extract_page(
                     document_id=document_id,
                     page=page,
                     page_number=page_number,
                 )
 
-                contents.append(content)
+                contents.append(document_content)
         return contents
 
     def _extract_page(self, document_id: UUID, page: fitz.Page, page_number: int) -> DocumentContent:

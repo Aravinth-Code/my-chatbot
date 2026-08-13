@@ -21,15 +21,15 @@ class DocumentChunkService:
         chunks = []
         chunk_index = 0
         for page in pages:
-            page_chunks = self.chunker.split(page.cleaned_text)
+            page_chunks = self.chunker.split(page.clean_text)
             for chunk_text in page_chunks:
 
                 chunk = DocumentChunk(
                     document_id=document_id,
                     chunk_index=chunk_index,
                     text=chunk_text,
-                    start_page=page.page_number,
-                    end_page=page.page_number,
+                    start_page=page.content_order,
+                    end_page=page.content_order,
                     character_count=len(chunk_text),
                 )
 

@@ -5,6 +5,7 @@ from app.db.base import Base
 from app.models.base_model import BaseModel
 from app.models.document_chunks import DocumentChunk
 from app.models.document_contents import DocumentContent
+from app.models.enums.document_source_type import DocumentSourceType
 from app.models.enums.document_status import DocumentStatus
 
 
@@ -56,7 +57,21 @@ class Document(Base, BaseModel):
         String(1000),
         nullable=True,
     )
-    
+
+    source_type: Mapped[DocumentSourceType] = mapped_column(
+        SQLEnum(
+            DocumentSourceType,
+            name="document_source_type",
+        ),
+        nullable=False,
+        default=DocumentSourceType.FILE,
+    )
+
+    source_url: Mapped[str | None] = mapped_column(
+        String(2048),
+        nullable=True,
+    )
+
     contents: Mapped[list["DocumentContent"]] = relationship(
         "DocumentContent",
         back_populates="document",
