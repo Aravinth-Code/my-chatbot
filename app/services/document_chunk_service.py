@@ -15,7 +15,7 @@ class DocumentChunkService:
         self.document_contents_repository = document_contents_repository
         self.chunker = chunker
         
-    def chunk_document(self, document_id: UUID) -> None:
+    def chunk_document(self, document_id: UUID) -> list[DocumentChunk]:
         pages = self.document_contents_repository.get_documents_by_id(document_id)
         
         chunks = []
@@ -37,4 +37,4 @@ class DocumentChunkService:
 
                 chunk_index += 1
 
-        self.document_chunk_repository.create_chunks(chunks)
+        return self.document_chunk_repository.create_chunks(chunks)

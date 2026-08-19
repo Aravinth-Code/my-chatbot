@@ -21,6 +21,13 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-small"
     embedding_batch_size: int = 100
 
+    # Retrieval
+    rrf_k: int = 60
+    retrieval_candidate_pool_size: int = 50
+
+    # Reranking
+    reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=False

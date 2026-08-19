@@ -5,6 +5,7 @@ from app.db.session import get_db
 from app.pipeline.chunkers.recursive_chunker import RecursiveChunker
 from app.pipeline.embeddings.openai_embeddings import OpenAIEmbeddings
 from app.pipeline.extractors.pdf_extractor import PDFExtractor
+from app.pipeline.extractors.text_extractor import TextExtractor
 from app.pipeline.extractors.webpage_extractor import WebPageExtractor
 from app.pipeline.cleaners.text_cleaner import TextCleaner
 from app.pipeline.loaders.url_fetcher import UrlFetcher
@@ -25,6 +26,7 @@ def get_document_service(
     document_chunk_repository = DocumentChunkRepository(db)
     pdf_extractor = PDFExtractor()
     web_extractor = WebPageExtractor()
+    text_extractor = TextExtractor()
     url_fetcher = UrlFetcher()
     text_cleaner = TextCleaner()
     recursive_chunker = RecursiveChunker()
@@ -46,6 +48,7 @@ def get_document_service(
         document_contents_repository=document_contents_repository,
         pdf_extractor=pdf_extractor,
         web_extractor=web_extractor,
+        text_extractor=text_extractor,
         url_fetcher=url_fetcher,
         text_cleaner=text_cleaner,
         document_chunk_service=chunk_service,

@@ -28,3 +28,6 @@ openai
 httpx
 beautifulsoup4
 lxml
+
+# reranking
+sentence-transformers

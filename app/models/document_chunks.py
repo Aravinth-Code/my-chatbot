@@ -3,7 +3,8 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import Computed, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 from app.models.base_model import BaseModel
@@ -59,6 +60,12 @@ class DocumentChunk(Base, BaseModel):
 
     embedding_model: Mapped[str | None] = mapped_column(
         String(100),
+        nullable=True,
+    )
+
+    search_vector: Mapped[str | None] = mapped_column(
+        TSVECTOR,
+        Computed("to_tsvector('english', text)", persisted=True),
         nullable=True,
     )
 

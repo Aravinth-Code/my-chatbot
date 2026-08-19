@@ -5,7 +5,15 @@ from uuid import UUID
 
 from fastapi import HTTPException, UploadFile, status
 
-from app.core.constants import ALLOWED_MIME_TYPES, MAX_UPLOAD_SIZE, UPLOAD_DIRECTORY, WEB_CONTENT_TYPE
+from app.core.constants import (
+    ALLOWED_MIME_TYPES,
+    MARKDOWN_MIME_TYPE,
+    MAX_UPLOAD_SIZE,
+    PDF_MIME_TYPE,
+    TEXT_MIME_TYPE,
+    UPLOAD_DIRECTORY,
+    WEB_CONTENT_TYPE,
+)
 from app.models.document import Document
 from app.models.enums.document_source_type import DocumentSourceType
 from app.models.enums.document_status import DocumentStatus
@@ -24,6 +32,7 @@ class DocumentService:
                  document_contents_repository: DocumentContentsRepository,
                  pdf_extractor: Extractor,
                  web_extractor: Extractor,
+                 text_extractor: Extractor,
                  url_fetcher: UrlFetcher,
                  text_cleaner: TextCleaner,
                  document_chunk_service: DocumentChunkService,
@@ -33,10 +42,17 @@ class DocumentService:
         self.document_contents_repository = document_contents_repository
         self.pdf_extractor = pdf_extractor
         self.web_extractor = web_extractor
+        self.text_extractor = text_extractor
         self.url_fetcher = url_fetcher
         self.text_cleaner = text_cleaner
         self.document_chunk_service = document_chunk_service
         self.embedding_service = embedding_service
+
+        self._extractors_by_mime_type: dict[str, Extractor] = {
+            PDF_MIME_TYPE: self.pdf_extractor,
+            TEXT_MIME_TYPE: self.text_extractor,
+            MARKDOWN_MIME_TYPE: self.text_extractor,
+        }
 
     def get_document(self, document_id: UUID) -> Document | None:
         return self.document_repository.get_by_id(document_id)
@@ -56,20 +72,25 @@ class DocumentService:
 
         storage_path = self._save_file(file_bytes, stored_file_name)
 
-        document = self.document_repository.create(
-            Document(
-                original_file_name=file.filename,
-                stored_file_name=stored_file_name,
-                mime_type=file.content_type,
-                file_size=len(file_bytes),
-                checksum=checksum,
-                storage_path=storage_path,
-                status=DocumentStatus.UPLOADED,
-                source_type=DocumentSourceType.FILE,
+        try:
+            document = self.document_repository.create(
+                Document(
+                    original_file_name=file.filename,
+                    stored_file_name=stored_file_name,
+                    mime_type=file.content_type,
+                    file_size=len(file_bytes),
+                    checksum=checksum,
+                    storage_path=storage_path,
+                    status=DocumentStatus.UPLOADED,
+                    source_type=DocumentSourceType.FILE,
+                )
             )
-        )
+        except Exception:
+            Path(storage_path).unlink(missing_ok=True)
+            raise
 
-        return self._process_document(document, file_bytes, self.pdf_extractor)
+        extractor = self._extractors_by_mime_type[file.content_type]
+        return self._process_document(document, file_bytes, extractor)
 
     def ingest_url(self, url: str) -> Document:
         content = self.url_fetcher.fetch(url)
@@ -82,19 +103,23 @@ class DocumentService:
 
         storage_path = self._save_file(content, stored_file_name)
 
-        document = self.document_repository.create(
-            Document(
-                original_file_name=url,
-                stored_file_name=stored_file_name,
-                mime_type=WEB_CONTENT_TYPE,
-                file_size=len(content),
-                checksum=checksum,
-                storage_path=storage_path,
-                status=DocumentStatus.UPLOADED,
-                source_type=DocumentSourceType.URL,
-                source_url=url,
+        try:
+            document = self.document_repository.create(
+                Document(
+                    original_file_name=url,
+                    stored_file_name=stored_file_name,
+                    mime_type=WEB_CONTENT_TYPE,
+                    file_size=len(content),
+                    checksum=checksum,
+                    storage_path=storage_path,
+                    status=DocumentStatus.UPLOADED,
+                    source_type=DocumentSourceType.URL,
+                    source_url=url,
+                )
             )
-        )
+        except Exception:
+            Path(storage_path).unlink(missing_ok=True)
+            raise
 
         return self._process_document(document, content, self.web_extractor)
 
@@ -118,11 +143,19 @@ class DocumentService:
         try:
             self.document_repository.update_status(document, DocumentStatus.CHUNKING)
 
-            self.document_chunk_service.chunk_document(document.id)
+            chunks = self.document_chunk_service.chunk_document(document.id)
 
         except Exception:
             self.document_repository.update_status(document, DocumentStatus.FAILED)
             raise
+
+        if not chunks:
+            self.document_repository.update_status(
+                document,
+                DocumentStatus.FAILED,
+                error_message="No extractable text found in document.",
+            )
+            return document
 
         try:
             self.document_repository.update_status(document, DocumentStatus.EMBEDDING)
@@ -141,7 +174,7 @@ class DocumentService:
         if file.content_type not in ALLOWED_MIME_TYPES:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Only PDF files are supported."
+                detail="Unsupported file type. Allowed types: PDF, plain text, Markdown."
             )
 
     async def _read_file(self, file: UploadFile) -> bytes:

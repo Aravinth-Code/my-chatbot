@@ -15,5 +15,21 @@ def search(
     request: SearchRequest,
     retrieval_service: RetrievalService = Depends(get_retrieval_service),
 ) -> list[SearchResult]:
-    chunks = retrieval_service.retrieve_candidates(request.query, request.top_k)
-    return [SearchResult.model_validate(chunk) for chunk in chunks]
+    results = retrieval_service.retrieve_candidates(
+        request.query,
+        request.top_k,
+        request.document_id,
+        request.created_after,
+        request.created_before,
+    )
+    return [
+        SearchResult(
+            chunk_id=chunk.id,
+            document_id=chunk.document_id,
+            text=chunk.text,
+            start_page=chunk.start_page,
+            end_page=chunk.end_page,
+            score=score,
+        )
+        for chunk, score in results
+    ]

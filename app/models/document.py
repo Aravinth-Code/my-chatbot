@@ -5,6 +5,7 @@ from app.db.base import Base
 from app.models.base_model import BaseModel
 from app.models.document_chunks import DocumentChunk
 from app.models.document_contents import DocumentContent
+from app.models.document_history import DocumentHistory
 from app.models.enums.document_source_type import DocumentSourceType
 from app.models.enums.document_status import DocumentStatus
 
@@ -79,6 +80,11 @@ class Document(Base, BaseModel):
     )
     
     chunks: Mapped[list["DocumentChunk"]] = relationship(
+        back_populates="document",
+        cascade="all, delete-orphan",
+    )
+
+    history: Mapped[list["DocumentHistory"]] = relationship(
         back_populates="document",
         cascade="all, delete-orphan",
     )
