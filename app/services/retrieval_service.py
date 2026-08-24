@@ -5,6 +5,7 @@ from app.core.config import settings
 from app.models.document_chunks import DocumentChunk
 from app.pipeline.embeddings.openai_embeddings import OpenAIEmbeddings
 from app.pipeline.reranking.cross_encoder_reranker import CrossEncoderReranker
+from app.pipeline.reranking.mmr import MMRSelector
 from app.repositories.document_chunk_repository import DocumentChunkRepository
 
 
@@ -15,10 +16,12 @@ class RetrievalService:
         document_chunk_repository: DocumentChunkRepository,
         embeddings: OpenAIEmbeddings,
         reranker: CrossEncoderReranker,
+        mmr_selector: MMRSelector,
     ):
         self.document_chunk_repository = document_chunk_repository
         self.embeddings = embeddings
         self.reranker = reranker
+        self.mmr_selector = mmr_selector
 
     def retrieve_candidates(
         self,
@@ -39,7 +42,8 @@ class RetrievalService:
         )
 
         fused = self._fuse_rrf(vector_results, keyword_results, fetch_k)
-        return self._rerank(query, fused, top_k)
+        reranked = self._rerank(query, fused)
+        return self.mmr_selector.select(query_embedding, reranked, top_k)
 
     def _fuse_rrf(
         self,
@@ -66,9 +70,7 @@ class RetrievalService:
         self,
         query: str,
         candidates: list[tuple[DocumentChunk, float]],
-        top_k: int,
     ) -> list[tuple[DocumentChunk, float]]:
         chunks = [chunk for chunk, _ in candidates]
         scores = self.reranker.score(query, [chunk.text for chunk in chunks])
-        reranked = sorted(zip(chunks, scores), key=lambda pair: pair[1], reverse=True)
-        return reranked[:top_k]
+        return sorted(zip(chunks, scores), key=lambda pair: pair[1], reverse=True)

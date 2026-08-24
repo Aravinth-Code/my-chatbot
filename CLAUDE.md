@@ -42,14 +42,21 @@ UPLOADED → PROCESSING → EXTRACTING → EXTRACTED → CHUNKING → EMBEDDING 
 
 Both then run the same shared steps:
 
-1. **Extract** (`app/pipeline/extractors/`) — `Extractor` is a real ABC (`extract(document_id, content: bytes) -> list[DocumentContent]`); `PDFExtractor` (PyMuPDF) and `WebPageExtractor` (BeautifulSoup, strips nav/header/footer/script/cookie-banner elements before extracting text) both implement it. Web pages produce a single `DocumentContent` row (`content_order=1`); PDFs produce one per page.
+1. **Extract** (`app/pipeline/extractors/`) — `Extractor` is a real ABC (`extract(document_id, content: bytes) -> list[DocumentContent]`); `PDFExtractor` (PyMuPDF), `WebPageExtractor` (BeautifulSoup, strips nav/header/footer/script/cookie-banner elements before extracting text), and `TextExtractor` (plain text/Markdown, a straight UTF-8 decode) all implement it. Web pages and plain text/Markdown each produce a single `DocumentContent` row (`content_order=1`); PDFs produce one per page.
 2. **Clean** (`app/pipeline/cleaners/`) — `TextCleaner` normalizes line endings/control characters/whitespace into `DocumentContent.clean_text`. Source-agnostic, reused as-is for both extractors.
 3. **Chunk** (`app/pipeline/chunkers/`, orchestrated by `DocumentChunkService`) — `RecursiveChunker` (LangChain's `RecursiveCharacterTextSplitter`) splits each `DocumentContent.clean_text` into `DocumentChunk` rows. `start_page`/`end_page` are the source `content_order` (always `1` for web pages — there's no real pagination concept there, the column names are just PDF-era naming that wasn't worth a migration to rename).
 4. **Embed** (`app/pipeline/embeddings/`, orchestrated by `EmbeddingService`) — `OpenAIEmbeddings` batches chunk text to OpenAI and writes vectors back to `DocumentChunk.embedding` (pgvector, fixed at 1536 dims — tied to `text-embedding-3-small`), tagging `DocumentChunk.embedding_model` so every chunk stays traceable to the model that produced its vector.
 
 ### Retrieval
 
-`POST /search` (`app/api/retrieval.py` → `RetrievalService.retrieve_candidates`) embeds the query with the same `OpenAIEmbeddings` used at ingestion time, then does a plain pgvector cosine-distance search (`document_chunks` has an HNSW index, `vector_cosine_ops`) filtered to `ChunkStatus.EMBEDDED`. This is Phase 10 "candidate retrieval" only — no BM25/hybrid/reranking yet, see `ROADMAP.md`.
+`POST /search` (`app/api/retrieval.py` → `RetrievalService.retrieve_candidates`) embeds the query with the same `OpenAIEmbeddings` used at ingestion time, then runs two rankers in parallel over `document_chunks` filtered to `ChunkStatus.EMBEDDED`: a pgvector cosine-distance search (HNSW index, `vector_cosine_ops`) and a Postgres native full-text search (`search_vector` generated column + GIN index, via `websearch_to_tsquery`/`ts_rank`). The two candidate lists are fused with unweighted RRF (`RetrievalService._fuse_rrf`), the fused pool is scored with a cross-encoder (`CrossEncoderReranker`, `cross-encoder/ms-marco-MiniLM-L-6-v2`), and MMR (`MMRSelector`, `app/pipeline/reranking/mmr.py`) makes the final `top_k` selection from that scored pool — trading relevance against redundancy (via chunk-embedding cosine similarity) so near-duplicate chunks don't crowd out the results, tuned by `settings.mmr_lambda` (default `0.5`). Context compression (the rest of Phase 12) is not built yet, see `ROADMAP.md`.
+
+### Chat (prompt building + LLM answer generation)
+
+`POST /chat` (`app/api/chat.py` → `ChatService.answer`, `app/services/chat_service.py`) is the single end-to-end entry point: it composes `RetrievalService` (retrieve candidates), `PromptBuilder` (build the prompt), and `OpenAIChat` (generate the answer) internally and returns `{ answer, sources }` in one call — same "one call, not a chain of calls" shape as `/search`. Like the reranker/MMR pieces `RetrievalService` composes, `PromptBuilder` and `OpenAIChat` have no endpoints of their own.
+
+- **`PromptBuilder`** (`app/pipeline/prompting/prompt_builder.py`) assembles the retrieved `DocumentChunk`s plus the query into OpenAI-style chat messages (`[{"role": "system", ...}, {"role": "user", ...}]`) — a fixed grounding-instructions system prompt, plus a numbered, source-tagged context block (`[n] (document {id}, page {page}) {text}`) so the model has citable reference points.
+- **`OpenAIChat`** (`app/pipeline/llm/openai_chat.py`) sends those messages to `settings.chat_model` (default `gpt-4o-mini`) at `settings.chat_temperature` (default `0.2`) and returns the completion text. OpenAI-only for now, no streaming/retry/fallback/cost tracking, single-turn only (no conversation history).
 
 ### Data model
 

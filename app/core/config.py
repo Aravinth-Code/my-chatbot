@@ -28,6 +28,13 @@ class Settings(BaseSettings):
     # Reranking
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
+    # MMR (relevance vs. diversity tradeoff; 1.0 = pure relevance, 0.0 = pure diversity)
+    mmr_lambda: float = 0.5
+
+    # Chat / LLM answer generation
+    chat_model: str = "gpt-4o-mini"
+    chat_temperature: float = 0.2
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=False
